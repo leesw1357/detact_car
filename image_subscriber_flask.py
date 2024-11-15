@@ -138,6 +138,7 @@ def get_status():
     global status, last_detection_time
     # 경과 시간 계산
     elapsed_time = 0
+    start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_detection_time))
     if last_detection_time is not None:
         elapsed_time = int(time.time() - last_detection_time)
     return jsonify({"status": status, "elapsed_time": elapsed_time})
@@ -157,7 +158,7 @@ def double_feed():
     if status == "도주차량 발생" and last_detection_time is not None:
         elapsed_time = int(time.time() - last_detection_time)  # 경과 시간 계산
         # 추적 시작 시간 포맷 변경
-        start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(last_detection_time))
+        start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_detection_time))
     
     formatted_time = f"{elapsed_time // 3600:02}:{(elapsed_time % 3600) // 60:02}:{elapsed_time % 60:02}"
 
@@ -174,7 +175,7 @@ def double_feed():
                         fetch('/get_status')
                         .then(response => response.json())
                         .then(data => {{
-                            if (data.status === "도주차량 발생") {{
+                            if (data.status === '단속 중' || data.status === "도주차량 발생") {{
                                 const elapsed_time = data.elapsed_time;
                                 const hours = Math.floor(elapsed_time / 3600);
                                 const minutes = Math.floor((elapsed_time % 3600) / 60);
@@ -211,14 +212,14 @@ def index():
     global status
     title = status
     elapsed_time = 0
-    if status == "도주차량 발생" and last_detection_time is not None:
+    if status in ["단속 중", "도주차량 발생"]and last_detection_time is not None:
         elapsed_time = int(time.time() - last_detection_time)  # 경과 시간 계산
     
     # 경과 시간을 시:분:초 형식으로 변환
     hours = elapsed_time // 3600
     minutes = (elapsed_time % 3600) // 60
     seconds = elapsed_time % 60
-    start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(last_detection_time))  # 추적 시작 시간 포맷 변경
+    start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_detection_time))  # 로컬 시간 기준으로 포맷 변경
     formatted_time = f"{hours:02}:{minutes:02}:{seconds:02}"
 
     if status == "단속 전":
@@ -235,7 +236,7 @@ def index():
                 <img src="{{{{ url_for('video_feed_1') }}}}" width="640" height="480">
             </div>
             <div><strong>단속 시작 시간: {start_time}</strong></div>  <!-- 추적 시작 시간 표시 -->
-            <div><strong>단속 경과 시간: {formatted_time}</strong></div>
+            <div><strong>단속 경과 시간: <span id="elapsed-time">{formatted_time}</span></strong></div>
         """
     elif status == "도주차량 발생":
         video_content = f"""
