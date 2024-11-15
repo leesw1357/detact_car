@@ -52,6 +52,10 @@ class ImageSubscriber(Node):
         if status in ["단속 전", "단속 중"]:
             frame, alarm_triggered = self.process_frame_with_yolo_and_polygon(frame)
             
+            # "단속 중" 상태일 때 last_detection_time을 계속 갱신
+            if status == "단속 중" and last_detection_time is None:
+                last_detection_time = time.time()  # 단속 시작 시간 기록
+            
             # "단속 중" 상태에서만 알람 상태를 확인하여 전환
             if status == "단속 중" and alarm_triggered:
                 status = "도주차량 발생"  # 차량이 영역을 벗어났을 때 상태를 한번만 전환
@@ -138,7 +142,6 @@ def get_status():
     global status, last_detection_time
     # 경과 시간 계산
     elapsed_time = 0
-    start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_detection_time))
     if last_detection_time is not None:
         elapsed_time = int(time.time() - last_detection_time)
     return jsonify({"status": status, "elapsed_time": elapsed_time})
@@ -155,7 +158,7 @@ def double_feed():
     elapsed_time = 0
     start_time = ""
 
-    if status == "도주차량 발생" and last_detection_time is not None:
+    if (status == "발생 중" or status == "도주차량 발생") and last_detection_time is not None:
         elapsed_time = int(time.time() - last_detection_time)  # 경과 시간 계산
         # 추적 시작 시간 포맷 변경
         start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_detection_time))
@@ -236,7 +239,7 @@ def index():
                 <img src="{{{{ url_for('video_feed_1') }}}}" width="640" height="480">
             </div>
             <div><strong>단속 시작 시간: {start_time}</strong></div>  <!-- 추적 시작 시간 표시 -->
-            <div><strong>단속 경과 시간: <span id="elapsed-time">{formatted_time}</span></strong></div>
+            <div><strong>단속 경과 시간: {formatted_time}</strong></div>
         """
     elif status == "도주차량 발생":
         video_content = f"""
@@ -279,7 +282,7 @@ def index():
                         fetch('/get_status')
                         .then(response => response.json())
                         .then(data => {{
-                            if (data.status === "도주차량 발생") {{
+                            if (data.status === "도주차량 발생" || data.status === "단속 중") {{
                                 location.reload();  // 도주 차량 발생 상태로 전환되면 페이지 새로고침
                             }}
                         }});
